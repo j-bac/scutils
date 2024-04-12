@@ -26,6 +26,7 @@ ucx = {version = "1.15.*", channel = "conda-forge"}
 datashader = { version = "0.16.*", channel = "conda-forge"}
 libcublas = {version = "12.*", channel = "conda-forge"}
 nccl = {version = "2.20.*", channel = "conda-forge"}
+scanpy = ">=1.10.1,<1.11"
 
 [tool.pixi.pypi-dependencies]
 # A local path, which installs your project in editable mode.
