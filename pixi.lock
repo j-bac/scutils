@@ -10279,7 +10279,7 @@ packages:
   name: scutils
   version: '0.1'
   path: .
-  sha256: 73597e650c5a5867dc832f3a380b1785946e3fd2f1d99f7330c4197823ef1aa0
+  sha256: 629969952a659666aaaf2316a2f84b8d70cb6c531a6204eb9e0a5ced863ba61c
   editable: true
 - kind: pypi
   name: scvi-tools
