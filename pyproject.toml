@@ -9,32 +9,44 @@ dynamic = ["version"]
 [tool.hatch.version]
 path = "scutils/__about__.py"
 
+
+### pixi default dependencies ###
 [tool.pixi.project]
 channels = [ "rapidsai-nightly", "conda-forge" ]
 platforms = ["linux-64"]
 
 [tool.pixi.system-requirements]
-linux="4.18"
-cuda = "12.2"
+linux = "4.18"
 
 [tool.pixi.dependencies]
-rapids = {version = "24.04.*", channel = "rapidsai-nightly"}
 python = ">=3.10"
+
+[tool.pixi.pypi-dependencies]
+scutils = { path = ".", editable = true }
+scArches = "*"
+
+
+### pixi cuda dependencies ###
+[tool.pixi.feature.cuda]
+platforms = ["linux-64"]
+channels = [ "rapidsai-nightly", "conda-forge" ]
+
+[tool.pixi.feature.cuda.system-requirements]
+cuda = "12.2"
+
+[tool.pixi.feature.cuda.dependencies]
 cuda-version = "12.2.*"
+rapids = {version = "24.04.*", channel = "rapidsai-nightly"}
 cupy = {version = "13.0.*", channel = "conda-forge"}
 ucx = {version = "1.15.*", channel = "conda-forge"}
 datashader = { version = "0.16.*", channel = "conda-forge"}
 libcublas = {version = "12.*", channel = "conda-forge"}
 nccl = {version = "2.20.*", channel = "conda-forge"}
-scanpy = ">=1.10.1,<1.11"
-scvi-tools = ">=1.1.2,<1.2"
 
-[tool.pixi.pypi-dependencies]
-# A local path, which installs your project in editable mode.
-scutils = { path = ".", editable = true }
+[tool.pixi.feature.cuda.pypi-dependencies]
 rapids-singlecell = "*"
 
 [tool.pixi.tasks]
-# A task to run the python module.
-#start = "python -c 'from scutils import module; module.hello()'"
 
+[tool.pixi.environments]
+cuda = ["cuda"] # This is read as ["default", "cuda"]
