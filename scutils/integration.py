@@ -1,10 +1,26 @@
 import scanpy as sc
-import rapids_singlecell as rsc
 import scvi
 import scarches as sca
 import ot
-import numpy as np
+import os
 import pathlib
+import importlib
+if importlib.util.find_spec('rapids_singlecell') is not None:
+    # Import gpu libraries, Initialize rmm and cupy
+    import rapids_singlecell as rsc
+    import cupy as cp
+    import rmm
+    from rmm.allocators.cupy import rmm_cupy_allocator
+
+def check_gpu_availability():
+    # Check if CUDA_VISIBLE_DEVICES environment variable is set
+    cuda_visible_devices = os.getenv("CUDA_VISIBLE_DEVICES")
+    if cuda_visible_devices:
+        # GPUs are available
+        return True
+    else:
+        # GPUs are not available
+        return False
 
 def preprocess(
     adata,
@@ -42,53 +58,53 @@ def preprocess(
     Returns:
         None
     """
+    if 'preprocess' in adata.uns:
+        print('Warning: preprocess key already found in adata.uns')
 
     if save_raw:
         if verbose:
             print("Saving raw counts in layers['counts']...")
-        ad_all.layers["counts"] = ad_all.X
+        adata.layers["counts"] = adata.X
 
     ### optional switch to GPU backend ###
     if backend == "gpu":
-        # Import necessary libraries
-        import rapids_singlecell as rsc
-        import cupy as cp
-        import rmm
-        from rmm.allocators.cupy import rmm_cupy_allocator
-
-        # Initialize rmm and cupy
-        rmm.reinitialize(managed_memory=False, pool_allocator=False, devices=device)
-        cp.cuda.set_allocator(rmm_cupy_allocator)
-
-        # Transfer data to GPU
-        if verbose:
-            print("Transferring data to GPU...")
-        rsc.utils.anndata_to_GPU(adata)
+        if not check_gpu_availability():
+            print("GPU not available. Switching to CPU backend...")
+            xsc = sc
+            backend = "cpu"
+        else:
+            # allow memory oversubscription, transfer data to GPU
+            rmm.reinitialize(managed_memory=True, devices=device)
+            cp.cuda.set_allocator(rmm_cupy_allocator)
+            if verbose:
+                print("Transferring data to GPU...")
+            rsc.utils.anndata_to_GPU(adata)
+            xsc = rsc
     else:
-        rsc = sc
+        xsc = sc
 
     ### preprocessing ###
     if normalize:
         if verbose:
             print("Normalizing total counts...")
-        rsc.pp.normalize_total(adata, target_sum=1e4)
+        xsc.pp.normalize_total(adata, target_sum=1e4)
     if log1p:
         if verbose:
             print("Applying log1p transformation...")
-        rsc.pp.log1p(adata)
+        xsc.pp.log1p(adata)
     if scale:
         if verbose:
             print("Scaling data...")
-        rsc.pp.scale(adata)
+        xsc.pp.scale(adata)
     if pca:
         if verbose:
             print("Performing PCA...")
-        rsc.tl.pca(adata, n_comps=n_comps)
+        xsc.tl.pca(adata, n_comps=n_comps)
     if umap:
         if verbose:
             print("Performing UMAP...")
-        rsc.pp.neighbors(adata, n_pcs=n_comps, n_neighbors=n_neighbors, metric=metric)
-        rsc.tl.umap(adata)
+        xsc.pp.neighbors(adata, n_pcs=n_comps, n_neighbors=n_neighbors, metric=metric)
+        xsc.tl.umap(adata)
 
     # Transfer data back to CPU if using GPU backend
     if backend == "gpu":
