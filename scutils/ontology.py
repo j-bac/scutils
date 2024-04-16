@@ -237,6 +237,9 @@ def ontology_graph_bionty_all(save_path=None, source="laminlabs/cellxgene"):
 
     # Save the graph if a path is provided
     if save_path is not None:
+        for n in graph.nodes:
+            graph.nodes[n]['info'].__dict__.pop('_state')
+            graph.nodes[n]['info'] = graph.nodes[n]['info'].__dict__
         with open(save_path, "wb") as f:
             pickle.dump(graph, f)
 
