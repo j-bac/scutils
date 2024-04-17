@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 def download_cellxgene_collection(
     collection_id,
     titles_contain=[],
+    assays_contain=[],
     overwrite=False,
     folder_path="/work/PRTNR/CHUV/DIR/rgottar1/spatial/env/jbac/projects/data/cellxgene",
     domain_name="cellxgene.cziscience.com",
@@ -56,6 +57,10 @@ def download_cellxgene_collection(
     for i in range(len(response_content["datasets"])):
         if len(titles_contain) and not any(
             t in response_content["datasets"][i]["title"] for t in titles_contain
+        ):
+            continue
+        if len(assays_contain) and not any(
+            t in response_content["datasets"][i]["assay"][0]['label'] for t in assays_contain
         ):
             continue
         else:
@@ -133,7 +138,7 @@ def load_cellxgene_collection_contents(
             df.drop(col, axis=1, inplace=True)
         return df
 
-    with open(pathlib.Path(folder_path) / f"{collection_id}/contents.json", "r") as f:
+    with open(pathlib.Path(folder_path) / f"{collection_id}/contents.json", "r",encoding="utf-8") as f:
         collection_contents = json.load(f)
 
     df = _explode_list_columns(pd.DataFrame(collection_contents["datasets"]))
