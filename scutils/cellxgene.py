@@ -7,6 +7,53 @@ import sklearn
 import matplotlib.pyplot as plt
 
 
+def download_cellxgene_collections_metadata(
+    save_path='../data/cellxgene/collections_metadata.json',
+    domain_name="cellxgene.cziscience.com",
+    collection_path = "/curation/v1/collections/"
+):
+    """Download a cellxgene collection to given folder
+    Args:
+        save_path (str, optional):
+            path to save file. Defaults to '../data/cellxgene/collections_metadata.json'. 
+            If None, returns the dataframe without saving
+        domain_name (str, optional):
+            cellxgene domain name. Defaults to "cellxgene.cziscience.com".
+        collection_path (str, optional):
+            cellxgene collection path. Defaults to "/curation/v1/collections/"
+    Returns:
+        cellxgene collections metadata saved in {folder_path}/collections_metadata.json
+    """
+    # https://github.com/chanzuckerberg/single-cell-curation/blob/main/notebooks/curation_api/python_raw/get_collection.ipynb
+
+    api_url_base = f"https://api.{domain_name}"
+    collection_url = f"{api_url_base}{collection_path}"
+    response = requests.get(url=collection_url)
+    response.raise_for_status()
+    collections = response.json()
+    response.close()
+
+    for i,collection in enumerate(collections):
+        print(i)
+        df_ = pd.DataFrame(collection['datasets'])
+        for k,v in collection.items():
+            if 'datasets' != k:
+                if type(v) in [list, dict]:
+                    df_[k] = [v for i in df_.index]
+                else:
+                    df_[k] = v
+        if i == 0: 
+            df = df_
+        else:
+            df = pd.concat([df,df_],axis=0)
+    df.index=range(len(df))
+    if save_path is None:
+        return df
+    else:
+        df.to_json('../data/cellxgene/collections_metadata.json')
+
+
+
 def download_cellxgene_collection(
     collection_id,
     titles_contain=[],
@@ -91,12 +138,36 @@ def download_cellxgene_collection(
                     print(f"File downloaded and saved to: {file_path}")
                     response_data.close()
 
-
-def load_cellxgene_collection_contents(
-    collection_id,
-    folder_path="/work/PRTNR/CHUV/DIR/rgottar1/spatial/env/jbac/projects/data/cellxgene",
+def _explode_list_columns(
+    df,
+    list_columns=[
+        "assay",
+        "assets",
+        "cell_type",
+        "development_stage",
+        "disease",
+        "self_reported_ethnicity",
+        "sex",
+        "suspension_type",
+        "tissue",
+    ],
 ):
-    """Download a cellxgene collection to given folder
+    for col in list_columns:
+        exploded = (
+            df[col]
+            .apply(lambda x: pd.DataFrame(x).to_dict("list"))
+            .apply(pd.Series)
+            .add_prefix(f"{col}_")
+        )
+        df = pd.concat([df, exploded], axis=1)
+        df.drop(col, axis=1, inplace=True)
+    return df
+
+def load_cellxgene_collections_metadata(
+    file_path='../data/cellxgene/collections_metadata.json',
+    explode_columns=True,
+):
+    """Load a cellxgene collection to given folder
     Parameters:
         collection_id (str):
             cellxgene collection_id
@@ -113,30 +184,26 @@ def load_cellxgene_collection_contents(
         cellxgene datasets saved in folder_path
     """
 
-    def _explode_list_columns(
-        df,
-        list_columns=[
-            "assay",
-            "assets",
-            "cell_type",
-            "development_stage",
-            "disease",
-            "self_reported_ethnicity",
-            "sex",
-            "suspension_type",
-            "tissue",
-        ],
-    ):
-        for col in list_columns:
-            exploded = (
-                df[col]
-                .apply(lambda x: pd.DataFrame(x).to_dict("list"))
-                .apply(pd.Series)
-                .add_prefix(f"{col}_")
-            )
-            df = pd.concat([df, exploded], axis=1)
-            df.drop(col, axis=1, inplace=True)
-        return df
+    df = pd.read_json(file_path)
+    if explode_columns:
+        df = _explode_list_columns(df)
+    return df
+
+
+def load_cellxgene_collection_contents(
+    collection_id,
+    folder_path="/work/PRTNR/CHUV/DIR/rgottar1/spatial/env/jbac/projects/data/cellxgene",
+):
+    """Load a cellxgene collection in given folder
+    Parameters:
+        collection_id (str):
+            cellxgene collection_id
+        domain_name (str, optional):
+            cellxgene domain name. Defaults to "cellxgene.cziscience.com".
+
+    Returns:
+        cellxgene datasets saved in folder_path
+    """
 
     with open(pathlib.Path(folder_path) / f"{collection_id}/contents.json", "r",encoding="utf-8") as f:
         collection_contents = json.load(f)
