@@ -8,14 +8,14 @@ import matplotlib.pyplot as plt
 
 
 def download_cellxgene_collections_metadata(
-    save_path='../data/cellxgene/collections_metadata.json',
+    save_path="../data/cellxgene/collections_metadata.json",
     domain_name="cellxgene.cziscience.com",
-    collection_path = "/curation/v1/collections/"
+    collection_path="/curation/v1/collections/",
 ):
     """Download a cellxgene collection to given folder
     Args:
         save_path (str, optional):
-            path to save file. Defaults to '../data/cellxgene/collections_metadata.json'. 
+            path to save file. Defaults to '../data/cellxgene/collections_metadata.json'.
             If None, returns the dataframe without saving
         domain_name (str, optional):
             cellxgene domain name. Defaults to "cellxgene.cziscience.com".
@@ -33,25 +33,24 @@ def download_cellxgene_collections_metadata(
     collections = response.json()
     response.close()
 
-    for i,collection in enumerate(collections):
+    for i, collection in enumerate(collections):
         print(i)
-        df_ = pd.DataFrame(collection['datasets'])
-        for k,v in collection.items():
-            if 'datasets' != k:
+        df_ = pd.DataFrame(collection["datasets"])
+        for k, v in collection.items():
+            if "datasets" != k:
                 if type(v) in [list, dict]:
                     df_[k] = [v for i in df_.index]
                 else:
                     df_[k] = v
-        if i == 0: 
+        if i == 0:
             df = df_
         else:
-            df = pd.concat([df,df_],axis=0)
-    df.index=range(len(df))
+            df = pd.concat([df, df_], axis=0)
+    df.index = range(len(df))
     if save_path is None:
         return df
     else:
-        df.to_json('../data/cellxgene/collections_metadata.json')
-
+        df.to_json("../data/cellxgene/collections_metadata.json")
 
 
 def download_cellxgene_collection(
@@ -107,7 +106,8 @@ def download_cellxgene_collection(
         ):
             continue
         if len(assays_contain) and not any(
-            t in response_content["datasets"][i]["assay"][0]['label'] for t in assays_contain
+            t in response_content["datasets"][i]["assay"][0]["label"]
+            for t in assays_contain
         ):
             continue
         else:
@@ -138,6 +138,7 @@ def download_cellxgene_collection(
                     print(f"File downloaded and saved to: {file_path}")
                     response_data.close()
 
+
 def _explode_list_columns(
     df,
     list_columns=[
@@ -162,19 +163,11 @@ def _explode_list_columns(
         df.drop(col, axis=1, inplace=True)
     return df
 
+
 def load_cellxgene_collections_metadata(
-    file_path='../data/cellxgene/collections_metadata.json',
+    file_path="../data/cellxgene/collections_metadata.json",
     explode_columns=True,
-    list_columns=[
-        "assay",
-        "cell_type",
-        "development_stage",
-        "disease",
-        "self_reported_ethnicity",
-        "sex",
-        "suspension_type",
-        "tissue",
-    ],
+    list_columns=["assay", "disease", "organism", "suspension_type", "tissue", "links"],
 ):
     """Load a cellxgene collection to given folder
 
@@ -215,7 +208,11 @@ def load_cellxgene_collection_contents(
         cellxgene datasets saved in folder_path
     """
 
-    with open(pathlib.Path(folder_path) / f"{collection_id}/contents.json", "r",encoding="utf-8") as f:
+    with open(
+        pathlib.Path(folder_path) / f"{collection_id}/contents.json",
+        "r",
+        encoding="utf-8",
+    ) as f:
         collection_contents = json.load(f)
 
     df = _explode_list_columns(pd.DataFrame(collection_contents["datasets"]))
