@@ -142,7 +142,6 @@ def _explode_list_columns(
     df,
     list_columns=[
         "assay",
-        "assets",
         "cell_type",
         "development_stage",
         "disease",
@@ -166,27 +165,38 @@ def _explode_list_columns(
 def load_cellxgene_collections_metadata(
     file_path='../data/cellxgene/collections_metadata.json',
     explode_columns=True,
+    list_columns=[
+        "assay",
+        "cell_type",
+        "development_stage",
+        "disease",
+        "self_reported_ethnicity",
+        "sex",
+        "suspension_type",
+        "tissue",
+    ],
 ):
     """Load a cellxgene collection to given folder
-    Parameters:
-        collection_id (str):
-            cellxgene collection_id
-        titles_contain (list, optional):
-            list of strings. Datasets are kept if they contain any of these strings in their title. Defaults to [] which returns all datasets
-        overwrite (bool, optional):
-            overwrite existing files. Defaults to False.
-        folder_path (str, optional):
-            folder to save files. Defaults to '/work/PRTNR/CHUV/DIR/rgottar1/spatial/env/jbac/projects/data/cellxgene'.
-        domain_name (str, optional):
-            cellxgene domain name. Defaults to "cellxgene.cziscience.com".
+
+    Args:
+        file_path (str): The path to the JSON file containing the collection metadata.
+            Defaults to '../data/cellxgene/collections_metadata.json'.
+        explode_columns (bool): Whether to explode the list columns into separate columns.
+            Defaults to True.
+        list_columns (List[str]): The list columns to explode. Defaults to the list of columns
+            specified in the function definition.
 
     Returns:
-        cellxgene datasets saved in folder_path
+        pandas.DataFrame: The cellxgene datasets saved in the folder_path.
     """
 
+    # Read the JSON file containing the collection metadata
     df = pd.read_json(file_path)
+
+    # Explode the list columns into separate columns, if specified
     if explode_columns:
-        df = _explode_list_columns(df)
+        df = _explode_list_columns(df, list_columns=list_columns)
+
     return df
 
 
