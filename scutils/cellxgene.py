@@ -88,12 +88,7 @@ def download_cellxgene_collection(
     response.close()
 
     # Check if the folder exists, create it if not
-    folder = (
-        pathlib.Path(
-            "/work/PRTNR/CHUV/DIR/rgottar1/spatial/env/jbac/projects/data/cellxgene"
-        )
-        / collection_id
-    )
+    folder = pathlib.Path(folder_path) / collection_id
     folder.mkdir(parents=True, exist_ok=True)
 
     with open(folder / "contents.json", "w", encoding="utf-8") as f:
