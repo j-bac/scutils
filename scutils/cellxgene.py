@@ -50,7 +50,7 @@ def download_cellxgene_collections_metadata(
     if save_path is None:
         return df
     else:
-        df.to_json("../data/cellxgene/collections_metadata.json")
+        df.to_json(save_path)
 
 
 def download_cellxgene_collection(
