@@ -5,12 +5,14 @@ import ot
 import os
 import pathlib
 import importlib
-if importlib.util.find_spec('rapids_singlecell') is not None:
+
+if importlib.util.find_spec("rapids_singlecell") is not None:
     # Import gpu libraries, Initialize rmm and cupy
     import rapids_singlecell as rsc
     import cupy as cp
     import rmm
     from rmm.allocators.cupy import rmm_cupy_allocator
+
 
 def check_gpu_availability():
     # Check if CUDA_VISIBLE_DEVICES environment variable is set
@@ -21,6 +23,7 @@ def check_gpu_availability():
     else:
         # GPUs are not available
         return False
+
 
 def preprocess(
     adata,
@@ -58,8 +61,8 @@ def preprocess(
     Returns:
         None
     """
-    if 'preprocess' in adata.uns:
-        print('Warning: preprocess key already found in adata.uns')
+    if "preprocess" in adata.uns:
+        print("Warning: preprocess key already found in adata.uns")
 
     if save_raw:
         if verbose:
@@ -78,7 +81,7 @@ def preprocess(
             cp.cuda.set_allocator(rmm_cupy_allocator)
             if verbose:
                 print("Transferring data to GPU...")
-            rsc.utils.anndata_to_GPU(adata)
+            rsc.get.anndata_to_GPU(adata)
             xsc = rsc
     else:
         xsc = sc
@@ -110,7 +113,7 @@ def preprocess(
     if backend == "gpu":
         if verbose:
             print("Transferring data back to CPU...")
-        rsc.utils.anndata_to_CPU(adata)
+        rsc.get.anndata_to_CPU(adata)
     adata.uns["preprocess"] = dict(
         normalize=normalize,
         log1p=log1p,
@@ -125,7 +128,7 @@ def preprocess(
     )
 
 
-def prepare_adatas_hvg_split(ads, path, label="dataset_merge_id",overwrite=False):
+def prepare_adatas_hvg_split(ads, path=None, label="dataset_merge_id", overwrite=False):
     """
     Prepare data by finding HVGs for each AnnData object and
     creating a joint AnnData with union, intersection, and strict_intersection of HVGs.
@@ -186,14 +189,15 @@ def prepare_adatas_hvg_split(ads, path, label="dataset_merge_id",overwrite=False
                     ad_all.var["highly_variable"][ad_all.var["highly_variable"]].index,
                 ].copy()
 
-            # Save joint HVG
-            ad_joint.write(f"{path}_{hvg_mode}.h5ad")
+            if path is None:
+                return ad_joint
+            else:
+                # Save joint HVG
+                ad_joint.write(f"{path}_{hvg_mode}.h5ad")
+                del ad_joint
 
-            # Clean up
-            del ad_joint
 
-
-def prepare_adatas_hvg(ads, path, label="dataset_merge_id"):
+def prepare_adatas_hvg(ads, path=None, label="dataset_merge_id"):
     """
     Prepare data by finding HVGs for each AnnData object and
     creating a joint AnnData.
@@ -214,6 +218,7 @@ def prepare_adatas_hvg(ads, path, label="dataset_merge_id"):
 
     # Concatenate AnnData objects and save as ad_all
     ad_all = sc.concat(ads, label=label, join="outer")[:, common_genes]
+    ad_all.obs["obs_names"] = ad_all.obs_names
     ad_all.obs_names_make_unique()
     ad_all.layers["counts"] = ad_all.X
 
@@ -251,7 +256,14 @@ def prepare_adatas_hvg(ads, path, label="dataset_merge_id"):
         # Add joint HVG to ad_all and save
         ad_all.var[f"highly_variable_{hvg_mode}"] = False
         ad_all.var.loc[hvgs, f"highly_variable_{hvg_mode}"] = True
-    ad_all.write(path)
+
+    if path is None:
+        return ad_all
+    else:
+        # Save joint HVG
+        ad_all.write(path)
+        del ad_all
+
 
 def embed_adata_cellxgene_scvi(
     adata,
@@ -333,7 +345,7 @@ def integrate(
             adata object with joint data
         integration_key (str):
             adata.obs column to use for integration
-        mode (str): 'ot_bw','ot_gw','ot_emd','scvi', 'cxg_scvi', 'cxg_scvi_retrain', 'scanorama'
+        mode (str): 'ot_bw','ot_gw','ot_emd','scvi', 'cxg_scvi', 'cxg_scvi_retrain', 'scanorama', 'harmony',
             Integration method to use
             obsm['X_pca'] is used as input to OT methods
             layers['counts'] is used as raw counts input to scvi models
@@ -380,6 +392,13 @@ def integrate(
                     mode=mode,
                 )
 
+    elif mode == "scanorama":
+        sc.external.pp.scanorama_integrate(adata, key=integration_key, basis="X_pca")
+    elif mode == "harmony":
+        sc.external.pp.harmony_integrate(
+            adata, key=integration_key, basis="X_pca", adjusted_basis=LATENT_KEY
+        )
+
     elif mode == "scvi":
         sca.models.SCVI.setup_anndata(adata, batch_key=integration_key)
         model = sca.models.SCVI(
@@ -414,18 +433,15 @@ def integrate(
             adata, cxg_scvi_retrain=True
         )
 
-    elif mode == "scanorama":
-        sc.external.pp.scanorama_integrate(adata, key=integration_key, basis="X_pca")
-
     if "mde" in compute_embeddings:
         adata.obsm[MDE_KEY] = scvi.model.utils.mde(adata.obsm[LATENT_KEY])
     if "umap" in compute_embeddings:
-        rsc.utils.anndata_to_GPU(adata)
+        rsc.get.anndata_to_GPU(adata)
         rsc.pp.neighbors(adata, metric="cosine", use_rep=LATENT_KEY)
         adata.obsm[UMAP_KEY] = rsc.tl.umap(adata, copy=True, min_dist=0.2).obsm[
             "X_umap"
         ]
-        rsc.utils.anndata_to_CPU(adata)
+        rsc.get.anndata_to_CPU(adata)
 
     if "counts" in adata.layers:
         adata.X = adata.layers["X"]
